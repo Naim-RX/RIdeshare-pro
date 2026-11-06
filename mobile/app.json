@@ -1,0 +1,11 @@
+{
+  "expo": {
+    "name": "RideShare Pro",
+    "slug": "rideshare-pro",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "android": { "package": "com.ridesharepro.mobile", "softwareKeyboardLayoutMode": "resize" },
+    "ios": { "bundleIdentifier": "com.ridesharepro.mobile", "supportsTablet": true }
+  }
+}
