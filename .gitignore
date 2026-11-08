@@ -8,6 +8,7 @@ ios/
 .tools/
 .env
 .env.*
+.secret.local
 !.env.example
 *.log
 *-debug.log*

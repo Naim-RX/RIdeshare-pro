@@ -21,6 +21,13 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['fullName', 'mobile']);
       allow delete: if false;
     }
+    match /rides/{rideId} {
+      allow read: if request.auth != null
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'customer'
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'active'
+        && resource.data.customerId == request.auth.uid;
+      allow write: if false;
+    }
     match /{document=**} { allow read, write: if false; }
   }
 }

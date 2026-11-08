@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const { initializeTestEnvironment, assertFails, assertSucceeds } = require('@firebase/rules-unit-testing');
 const { initializeApp, deleteApp } = require('firebase/app');
 const { getAuth, connectAuthEmulator, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } = require('firebase/auth');
-const { getFirestore, connectFirestoreEmulator, doc, setDoc, getDoc, updateDoc, deleteDoc, serverTimestamp } = require('firebase/firestore');
+const { getFirestore, connectFirestoreEmulator, collection, query, where, getDocs, doc, setDoc, getDoc, updateDoc, deleteDoc, serverTimestamp } = require('firebase/firestore');
 const projectId = 'demo-rideshare-pro';
 let env;
 const apps = [];
@@ -60,4 +60,38 @@ test('rules reject admin creation, forged ownership/email, password and extra fi
   await assertFails(getDoc(doc(env.authenticatedContext('other', { email: 'other@example.com' }).firestore(), 'users', 'owner')));
   await assertFails(updateDoc(ref, { createdAt: serverTimestamp() }));
   await assertFails(setDoc(doc(db, 'rides', 'unimplemented'), { customerId: 'owner' }));
+});
+test('active customers read only their own rides; all client ride writes and map quota access stay denied', async () => {
+  const db = env.authenticatedContext('history-customer', { email: 'history@example.com' }).firestore();
+  await env.withSecurityRulesDisabled(async (context) => {
+    const trusted = context.firestore();
+    await setDoc(doc(trusted, 'users', 'history-customer'), data('history@example.com', 'customer'));
+    await setDoc(doc(trusted, 'rides', 'owned'), { customerId: 'history-customer', pickupLabel: 'Campus', createdAt: serverTimestamp() });
+    await setDoc(doc(trusted, 'rides', 'other'), { customerId: 'other-customer', createdAt: serverTimestamp() });
+  });
+  await assertSucceeds(getDoc(doc(db, 'rides', 'owned')));
+  await assertSucceeds(getDocs(query(collection(db, 'rides'), where('customerId', '==', 'history-customer'))));
+  await assertFails(getDoc(doc(db, 'rides', 'other')));
+  await assertFails(getDocs(collection(db, 'rides')));
+  await assertFails(setDoc(doc(db, 'rides', 'attempt'), { customerId: 'history-customer' }));
+  await assertFails(getDoc(doc(db, 'mapUsage', 'history-customer')));
+  await env.withSecurityRulesDisabled((context) => updateDoc(doc(context.firestore(), 'users', 'history-customer'), { status: 'disabled' }));
+  await assertFails(getDoc(doc(db, 'rides', 'owned')));
+});
+test('maps callable rejects guests, bikers and exhausted customer quotas before contacting Google', async () => {
+  const { maps } = require('../../functions/index.js');
+  await assert.rejects(maps.run({ data: {} }), (error) => error.code === 'unauthenticated');
+  await env.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore();
+    await setDoc(doc(db, 'users', 'maps-biker'), data('biker@example.com', 'biker'));
+    await setDoc(doc(db, 'users', 'maps-customer'), data('customer@example.com', 'customer'));
+    await setDoc(doc(db, 'mapUsage', 'maps-customer'), { minute: Math.floor(Date.now() / 60000), count: 30 });
+  });
+  await assert.rejects(maps.run({ auth: { uid: 'maps-biker' }, data: {} }), (error) => error.code === 'permission-denied');
+  await assert.rejects(maps.run({ auth: { uid: 'maps-customer' }, data: {
+    action: 'route', pickup: { latitude: 23, longitude: 90 }, destination: { latitude: 24, longitude: 90 },
+  } }), (error) => error.code === 'resource-exhausted');
+  const functionsRequire = require('node:module').createRequire(require.resolve('../../functions/index.js'));
+  const { getApps, deleteApp: deleteAdminApp } = functionsRequire('firebase-admin/app');
+  await Promise.all(getApps().map(deleteAdminApp));
 });

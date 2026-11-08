@@ -1,6 +1,6 @@
 # RideShare Pro
 
-Phase 3: Expo UI with Firebase email/password authentication, persistent sessions, owned Firestore profiles, Customer/Biker navigation, and logout. Maps and ride operations are not implemented.
+Phase 4: Firebase authentication plus Customer Home, Home/History/Profile tabs, Google Places search, manual map-point selection, and motorcycle route preview. Route confirmation stays local; ride posting is not implemented.
 
 ## Setup
 
@@ -32,6 +32,7 @@ Run inside `mobile/`:
 | `npm run test:ui` | Run Expo/Jest component tests |
 | `npm run test:firebase` | Run Auth/Firestore emulator integration and security-rule tests (Java 21 required) |
 | `npm run emulators` | Start local Auth/Firestore emulators for development |
+| `npm run emulators:maps` | Start Auth/Firestore/Functions emulators (Google calls still require billing/key setup) |
 | `npm run check:dependencies` | Verify Expo dependency compatibility |
 | `npm run export:android` | Bundle Android JavaScript into ignored `dist/` |
 
@@ -61,6 +62,9 @@ mobile/
     utils/validation.js        Pure local form validation
   tests/                       Validation and component interaction tests
   integration/                 Real emulator integration and rules tests
+  app.config.js                Native Google Maps key plugin configuration
+  src/screens/customer/        Home and route selection
+functions/                     Authenticated Google Places/Routes callable proxy and tests
 firestore.rules                Profile ownership, immutable role/status, default deny
 firebase.json                  Emulator and rules configuration
 ```
@@ -79,3 +83,4 @@ Git ignores dependencies, Expo caches, exports, generated native projects, local
 Actual initialization check results are recorded in `docs/phase-1-validation.md`.
 Phase 2 component usage, check results, and the manual device checklist are in `docs/phase-2-validation.md`.
 Current authentication setup is in `docs/firebase-setup.md`; Phase 3 check results are in `docs/phase-3-validation.md`.
+Read [Google Maps setup, billing, key restrictions, and quotas](docs/google-maps-setup.md) before enabling any Maps service. Run backend checks with `cd functions`, `npm ci`, `npm test`, and `npm run check`. Emulator integration tests now also require the Functions package dependencies to be installed. Phase 4 results and the Android checklist are in `docs/phase-4-validation.md`.

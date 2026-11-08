@@ -7,6 +7,10 @@ import { watchProfile } from '../src/services/profileService';
 
 jest.mock('../src/services/authService', () => ({ watchAuth: jest.fn(), login: jest.fn(), register: jest.fn(), logout: jest.fn() }));
 jest.mock('../src/services/profileService', () => ({ watchProfile: jest.fn(), createProfile: jest.fn() }));
+jest.mock('../src/services/rideHistoryService', () => ({ watchCustomerRides: (uid, count, callback) => { callback([]); return () => {}; } }));
+jest.mock('../src/components/RouteMap', () => () => null);
+jest.mock('../src/services/mapsService', () => ({ getRoute: jest.fn(), searchPlaces: jest.fn(), resolvePlace: jest.fn() }));
+jest.mock('@expo/vector-icons', () => ({ Ionicons: () => null }));
 let authCallback;
 let profileCallback;
 beforeEach(() => {
@@ -20,10 +24,11 @@ test('restored session waits for server profile, navigates by role, then logs ou
   act(() => authCallback({ uid: 'restored-user', email: 'test@example.com' }));
   expect(screen.getByText('Loading account…')).toBeTruthy();
   act(() => profileCallback({ role: 'customer', status: 'active', fullName: 'Test User' }));
-  expect(screen.getByText('Customer home')).toBeTruthy();
+  expect(screen.getByText('Book a ride')).toBeTruthy();
+  fireEvent.press(screen.getByRole('tab', { name: 'Profile' }));
   fireEvent.press(screen.getByRole('button', { name: 'Logout' }));
   await waitFor(() => expect(authService.logout).toHaveBeenCalledTimes(1));
-  expect(screen.queryByText('Customer home')).toBeNull();
+  expect(screen.queryByText('Book a ride')).toBeNull();
 });
 test('biker profile routes to biker home and disabled status blocks access', () => {
   render(<AuthProvider><RootNavigator /></AuthProvider>);

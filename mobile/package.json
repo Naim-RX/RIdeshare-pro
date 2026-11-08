@@ -9,6 +9,7 @@
     "test:ui": "jest --runInBand",
     "test:firebase": "firebase emulators:exec --config ../firebase.json --project demo-rideshare-pro --only auth,firestore \"node --test integration/*.test.cjs\"",
     "emulators": "firebase emulators:start --config ../firebase.json --project demo-rideshare-pro --only auth,firestore",
+    "emulators:maps": "firebase emulators:start --config ../firebase.json --project demo-rideshare-pro --only auth,firestore,functions",
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
@@ -18,11 +19,13 @@
     "export:android": "expo export --platform android"
   },
   "dependencies": {
+    "@expo/vector-icons": "^15.0.2",
     "@react-native-async-storage/async-storage": "2.2.0",
     "expo": "~56.0.0",
     "firebase": "^12.0.0",
     "react": "19.2.3",
     "react-native": "^0.85.3",
+    "react-native-maps": "1.27.2",
     "react-native-safe-area-context": "~5.7.0"
   },
   "devDependencies": {
