@@ -1,5 +1,6 @@
-import { test, expect, jest } from '@jest/globals';
-import { fireEvent, render, screen, act, userEvent } from '@testing-library/react-native';
+import { test, expect, jest, beforeEach } from '@jest/globals';
+import { fireEvent, render, screen, act, userEvent, waitFor } from '@testing-library/react-native';
+import { useAuth } from '../src/context/AuthContext';
 import { BackHandler } from 'react-native';
 import PasswordField from '../src/components/PasswordField';
 import AuthNavigator from '../src/navigation/AuthNavigator';
@@ -12,6 +13,11 @@ import BidCard from '../src/components/BidCard';
 import LoadingIndicator from '../src/components/LoadingIndicator';
 import EmptyState from '../src/components/EmptyState';
 
+jest.mock('../src/context/AuthContext', () => ({ useAuth: jest.fn() }));
+beforeEach(() => {
+  useAuth.mockReturnValue({ login: jest.fn().mockRejectedValue({ code: 'auth/invalid-credential' }), register: jest.fn().mockRejectedValue({ code: 'auth/email-already-in-use' }), busy: false });
+});
+
 test('password visibility toggles without changing entered text', () => {
   render(<PasswordField value="secret123" onChangeText={() => {}} />);
   expect(screen.getByLabelText('Password').props.secureTextEntry).toBe(true);
@@ -22,7 +28,7 @@ test('password visibility toggles without changing entered text', () => {
   expect(screen.getByLabelText('Password').props.secureTextEntry).toBe(true);
 });
 
-test('login shows local validation and does not claim authentication success', () => {
+test('login shows local validation and Firebase credential errors', async () => {
   render(<LoginScreen onRegister={() => {}} />);
   fireEvent.press(screen.getByRole('button', { name: 'Login' }));
   expect(screen.getByText('Enter your email address.')).toBeTruthy();
@@ -31,10 +37,11 @@ test('login shows local validation and does not claim authentication success', (
   fireEvent.changeText(screen.getByLabelText('Password'), 'secret123');
   expect(screen.queryByText('Enter your email address.')).toBeNull();
   fireEvent.press(screen.getByRole('button', { name: 'Login' }));
-  expect(screen.getByText(/Login is not available yet/)).toBeTruthy();
+  await waitFor(() => expect(screen.getByText('Email or password is incorrect.')).toBeTruthy());
+  expect(useAuth().login).toHaveBeenCalledWith({ email: 'person@example.com', password: 'secret123' });
 });
 
-test('registration validates confirmation and permits biker selection', () => {
+test('registration validates confirmation and submits the selected biker role', async () => {
   render(<RegistrationScreen onLogin={() => {}} />);
   fireEvent.changeText(screen.getByLabelText('Full name'), 'Test Person');
   fireEvent.changeText(screen.getByLabelText('Email'), 'person@example.com');
@@ -47,7 +54,8 @@ test('registration validates confirmation and permits biker selection', () => {
   expect(screen.getByText('Passwords do not match.')).toBeTruthy();
   fireEvent.changeText(screen.getByLabelText('Confirm password'), 'secret123');
   fireEvent.press(screen.getByRole('button', { name: 'Create Account' }));
-  expect(screen.getByText(/Account creation is not available yet/)).toBeTruthy();
+  await waitFor(() => expect(screen.getByText('This email is already registered. Log in instead.')).toBeTruthy());
+  expect(useAuth().register).toHaveBeenCalledWith(expect.objectContaining({ role: 'biker' }));
 });
 
 test('splash advances to login; links and Android back return from registration', () => {

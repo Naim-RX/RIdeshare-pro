@@ -9,8 +9,11 @@ import SecondaryButton from '../../components/SecondaryButton';
 import ErrorMessage from '../../components/ErrorMessage';
 import { validateRegistration } from '../../utils/validation';
 import { theme } from '../../theme';
+import { useAuth } from '../../context/AuthContext';
+import { authErrorMessage } from '../../utils/authErrors';
 
 export default function RegistrationScreen({ onLogin }) {
+  const { register, busy } = useAuth();
   const [values, setValues] = useState({ fullName: '', email: '', mobile: '', password: '', confirmPassword: '', role: 'customer' });
   const [errors, setErrors] = useState({});
   const [message, setMessage] = useState('');
@@ -19,11 +22,15 @@ export default function RegistrationScreen({ onLogin }) {
     setErrors((current) => ({ ...current, [field]: undefined, ...(field === 'password' ? { confirmPassword: undefined } : {}) }));
     setMessage('');
   }
-  function submit() {
+  async function submit() {
+    if (busy) return;
     Keyboard.dismiss();
     const nextErrors = validateRegistration(values);
     setErrors(nextErrors);
-    setMessage(Object.keys(nextErrors).length ? 'Check the highlighted fields.' : 'Account creation is not available yet. Authentication will be connected in a future phase.');
+    if (Object.keys(nextErrors).length) { setMessage('Check the highlighted fields.'); return; }
+    setMessage('');
+    try { await register(values); }
+    catch (error) { setMessage(authErrorMessage(error)); }
   }
   return <Screen>
     <ScreenHeader title="Create your account" subtitle="Join RideShare Pro as a customer or biker." />
@@ -42,8 +49,8 @@ export default function RegistrationScreen({ onLogin }) {
     </View>
     <ErrorMessage message={errors.role || message} />
     <View style={{ gap: theme.spacing.md, marginTop: theme.spacing.md }}>
-      <PrimaryButton title="Create Account" onPress={submit} />
-      <SecondaryButton title="Already registered? Login" onPress={onLogin} />
+      <PrimaryButton title="Create Account" onPress={submit} loading={busy} />
+      <SecondaryButton title="Already registered? Login" onPress={onLogin} disabled={busy} />
     </View>
   </Screen>;
 }

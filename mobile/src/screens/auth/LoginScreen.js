@@ -9,8 +9,11 @@ import SecondaryButton from '../../components/SecondaryButton';
 import ErrorMessage from '../../components/ErrorMessage';
 import { validateLogin } from '../../utils/validation';
 import { theme } from '../../theme';
+import { useAuth } from '../../context/AuthContext';
+import { authErrorMessage } from '../../utils/authErrors';
 
 export default function LoginScreen({ onRegister }) {
+  const { login, busy } = useAuth();
   const [values, setValues] = useState({ email: '', password: '' });
   const [errors, setErrors] = useState({});
   const [message, setMessage] = useState('');
@@ -19,11 +22,15 @@ export default function LoginScreen({ onRegister }) {
     setErrors((current) => ({ ...current, [field]: undefined }));
     setMessage('');
   }
-  function submit() {
+  async function submit() {
+    if (busy) return;
     Keyboard.dismiss();
     const nextErrors = validateLogin(values);
     setErrors(nextErrors);
-    setMessage(Object.keys(nextErrors).length ? 'Check the highlighted fields.' : 'Login is not available yet. Authentication will be connected in a future phase.');
+    if (Object.keys(nextErrors).length) { setMessage('Check the highlighted fields.'); return; }
+    setMessage('');
+    try { await login(values); }
+    catch (error) { setMessage(authErrorMessage(error)); }
   }
   return <Screen>
     <ScreenHeader title="RideShare Pro" subtitle="Welcome back. Log in to continue." />
@@ -33,8 +40,8 @@ export default function LoginScreen({ onRegister }) {
       autoComplete="current-password" returnKeyType="done" onSubmitEditing={submit} />
     <ErrorMessage message={message} />
     <View style={{ gap: theme.spacing.md }}>
-      <PrimaryButton title="Login" onPress={submit} />
-      <SecondaryButton title="New here? Register" onPress={onRegister} />
+      <PrimaryButton title="Login" onPress={submit} loading={busy} />
+      <SecondaryButton title="New here? Register" onPress={onRegister} disabled={busy} />
     </View>
   </Screen>;
 }

@@ -1,0 +1,26 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function owner(uid) { return request.auth != null && request.auth.uid == uid; }
+    function validProfile(data) {
+      return data.keys().hasAll(['fullName', 'email', 'mobile', 'role', 'status', 'createdAt'])
+        && data.keys().hasOnly(['fullName', 'email', 'mobile', 'role', 'status', 'createdAt'])
+        && data.fullName is string && data.fullName.size() >= 2 && data.fullName.size() <= 100
+        && data.email is string && data.email == request.auth.token.email
+        && data.mobile is string && data.mobile.matches('^[+]?[0-9]{7,15}$')
+        && data.role in ['customer', 'biker']
+        && data.status == 'active' && data.createdAt is timestamp;
+    }
+    match /users/{uid} {
+      allow get: if owner(uid);
+      allow list: if false;
+      allow create: if owner(uid) && validProfile(request.resource.data)
+        && request.resource.data.createdAt == request.time;
+      allow update: if owner(uid) && resource.data.status == 'active'
+        && validProfile(request.resource.data)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['fullName', 'mobile']);
+      allow delete: if false;
+    }
+    match /{document=**} { allow read, write: if false; }
+  }
+}
